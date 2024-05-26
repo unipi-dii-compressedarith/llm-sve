@@ -1,6 +1,8 @@
 # dot files and such
 .vscode
 .venv
+.idea
+.github
 
 # data files
 data
@@ -24,6 +26,9 @@ dev/cuda/matmul_backward_bias
 dev/cuda/nccl_all_reduce
 *.obj
 *.exe
+*.o
+train_gpt2.sve
+test_gpt2.sve
 
 # log files
 *.log

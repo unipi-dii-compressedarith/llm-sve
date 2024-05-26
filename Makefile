@@ -1,9 +1,14 @@
-CC ?= clang
-CFLAGS = -Ofast -Wno-unused-result -Wno-ignored-pragmas -Wno-unknown-attributes
+CC = gcc
+# Poit lo modifico con script
+EXPERIMENT_FLAGS ?= -march=armv8-a+sve -O3 -Ofast #-fno-inline
+CFLAGS = \
+  -g -Wno-unused-result -Wno-ignored-pragmas -Wno-unknown-attributes \
+  $(EXPERIMENT_FLAGS) #\
+  #-fopt-info-vec-missed -fopt-info-vec-optimized # -fopt-info-vec-all
 LDFLAGS =
 LDLIBS = -lm
 INCLUDES =
-CFLAGS_COND = -march=native
+# CFLAGS_COND = -march=native
 
 # Find nvcc
 SHELL_UNAME = $(shell uname)
@@ -47,7 +52,7 @@ else
   else
     NVCC :=
   endif
-  CC := cl
+  CC := aarch64-linux-gnu-gcc-12
   CFLAGS = /Idev /Zi /nologo /Wall /WX- /diagnostics:column /sdl /O2 /Oi /Ot /GL /D _DEBUG /D _CONSOLE /D _UNICODE /D UNICODE /Gm- /EHsc /MD /GS /Gy /fp:fast /Zc:wchar_t /Zc:forScope /Zc:inline /permissive- \
    /external:W3 /Gd /TP /wd4996 /Fd$@.pdb /FC /openmp:llvm
   LDFLAGS :=
@@ -209,5 +214,24 @@ test_gpt2fp32cu: test_gpt2_fp32.cu
 profile_gpt2cu: profile_gpt2.cu
 	$(NVCC) $(NVCC_FLAGS) $(PFLAGS) -lineinfo $< $(NVCC_LDFLAGS) $(CUDA_OUTPUT_FILE)
 
+train_gpt2.sve.o: train_gpt2.sve.c
+	$(CC) -c $(CFLAGS) $(INCLUDES) -c $< -o $@
+
+test_gpt2.sve.o: test_gpt2.sve.c
+	$(CC) -c $(CFLAGS) $(INCLUDES) -c $< -o $@
+
+.PHONY: sve_prerequisites
+export
+sve_prerequisites:
+	$(MAKE) -C dev/sve all
+
+train_gpt2.sve: train_gpt2.sve.o sve_prerequisites
+	$(CC) $(CFLAGS) $(INCLUDES) $(LDFLAGS) $< dev/sve/*.o $(LDLIBS) -o $@
+
+test_gpt2.sve: test_gpt2.sve.o sve_prerequisites
+	$(CC) $(CFLAGS) $(INCLUDES) $(LDFLAGS) $< dev/sve/*.o $(LDLIBS) -o $@
+
 clean:
 	$(REMOVE_FILES) $(TARGETS)
+	rm -f train_gpt2.sve test_gpt2.sve *.o
+	$(MAKE) -C dev/sve clean
