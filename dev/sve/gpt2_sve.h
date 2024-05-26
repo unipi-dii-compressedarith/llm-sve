@@ -11,11 +11,15 @@ void expf_with_sw_LUT(float *data, uint32_t len);
 void expf_with_hw_LUT(float *data, uint32_t len);
 void expf_libc(float *data, uint32_t len);
 #ifndef expf_array
-#define expf_array expf_with_sw_LUT
+#define expf_array expf_with_hw_LUT
 #endif
 
 svfloat32_t sv_exp_hw_lut (svfloat32_t x, const svbool_t pg);
 svfloat32_t sv_exp_lut(svfloat32_t v, const svbool_t pg);
+
+#ifndef sv_expf
+#define sv_expf sv_exp_hw_lut
+#endif
 
 
 void log2_sw_LUT(float *values, uint32_t len, float factor);

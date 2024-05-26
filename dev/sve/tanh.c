@@ -21,12 +21,12 @@ void tanh_approx(float *values, uint32_t len)
         //svbool_t zero_mask = svcmpgt(pg, v, 16.0f);
         //pg = svnot_z(pg, zero_mask); // i.e. p st p > 1e-16
         svbool_t pg_tot = pg;
-        svbool_t pg_above_min = svcmple(pg, v, 16.0f);
-        svbool_t pg_below_max = svcmpge(pg, v, -16.0f);
+        svbool_t pg_above_min = svcmple(pg, v, 10.0f);
+        svbool_t pg_below_max = svcmpge(pg, v, -10.0f);
 
         pg = svand_z(pg, pg_above_min, pg_below_max);
 #endif
-        v = sv_exp_lut(v, pg);
+        v = sv_expf(v, pg);
 
         // compute tanh
         svfloat32_t numerator_v = svadd_x(pg, v, -1.0f);

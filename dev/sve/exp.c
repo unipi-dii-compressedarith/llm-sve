@@ -45,26 +45,20 @@ inline svfloat32_t sv_exp_lut(svfloat32_t v, const svbool_t pg)
 
 void expf_with_sw_LUT(float *values, uint32_t len)
 {
-    //svint32_t c2 = svdup_s32(sizeof(float));
-
     for (uint32_t i = 0; i < len; i += svcntw())
     {
         svbool_t pg = svwhilelt_b32(i, len);
         svfloat32_t v = svld1(pg, values + i);
 
-#ifdef ENABLE_ZERO_APROX // @FIXME
-        // exp(p) = 0 if p <= 1e-16
-        // disabling this will cause a SEGFAULT for out-of-bound ns
-        //svbool_t zero_mask = svcmpgt(pg, v, 16.0f);
-        //pg = svnot_z(pg, zero_mask); // i.e. p st p > 1e-16
+#ifdef ENABLE_ZERO_APROX
+        // exp(p) = 0 if p <= -16
         svbool_t pg_tot = pg;
-        pg = svcmple(pg, v, 16.0f);
+        pg = svcmpge(pg_tot, v, -16.0f);
 #endif
         v = sv_exp_lut(v, pg);
 
 #ifdef ENABLE_ZERO_APROX
-        //v = svdup_f32_m(v, zero_mask, /*0.00000005f*/ 0.0f);
-        v = svmax_x(pg_tot, v, 0.0f); // clamp negative values, faster that setting 0 manually
+        v = svdup_f32_m(v, svnot_z(pg_tot, pg), 0.0f);
 
         // Store back
         svst1(pg_tot, values + i, v);
@@ -134,10 +128,28 @@ void expf_with_hw_LUT(float *data, uint32_t len)
         svbool_t pg = svwhilelt_b32(i, (uint32_t) len);
         svfloat32_t v = svld1(pg, data + i);
 
+#ifdef ENABLE_ZERO_APROX
+        // exp(p) = 0 if p < -18
+        // epx(p) = +inf if p > 85
+        svbool_t pg_tot = pg;
+        svbool_t pg_not_zero = svcmpge(pg_tot, v, -18.0f);
+        svbool_t pg_not_inf = svcmple(pg_tot, v, 85.0f);
+
+        pg = svand_z(pg_tot, pg_not_zero, pg_not_inf);
+#endif
+
         v = sv_exp_hw_lut(v, pg);
 
+#ifdef ENABLE_ZERO_APROX
+        v = svdup_f32_m(v, svnot_z(pg_tot, pg_not_zero), 0.0f);
+        v = svdup_f32_m(v, svnot_z(pg_tot, pg_not_inf), INFINITY);
+
+        // Store back
+        svst1(pg_tot, data + i, v);
+#else
         // Store back
         svst1(pg, data + i, v);
+#endif
     }
 }
 
