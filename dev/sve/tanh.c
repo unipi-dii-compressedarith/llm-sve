@@ -44,6 +44,44 @@ void tanh_approx(float *values, uint32_t len)
     }
 }
 
+void tanh_approx_odd(float *values, size_t len)
+{
+    svfloat32_t c1 = svdup_f32(1.0f / 2);
+    //svint32_t c2 = svdup_s32(sizeof(float));
+
+    for (size_t i = 0; i < len; i += svcntw())
+    {
+        svbool_t pg = svwhilelt_b32(i, len);
+        svfloat32_t v = svld1(pg, values + i);
+        v = svscale_x(pg, v, 1); // 2x
+        
+        // store which one is negative and then convert everyone to positive
+        svbool_t pg_neg = svcmplt(pg, v, 0.0f);
+        v = svabs_x(pg, v);
+
+#ifdef ENABLE_ONE_APROX
+        svbool_t pg_tot = pg;
+        pg = svcmple(pg, v, 10.0f);
+#endif
+        v = sv_expf(v, pg);
+
+        // compute tanh
+        svfloat32_t numerator_v = svadd_x(pg, v, -1.0f);
+        svfloat32_t denominator_v = svadd_x(pg, v, +1.0f);
+        v = svdiv_x(pg, numerator_v, denominator_v);
+
+#ifdef ENABLE_ONE_APROX
+        v = svdup_f32_m(v, svnot_z(pg_tot, pg), +1.0f);
+        pg = pg_tot;
+#endif
+	// Flip negative values
+	v = svneg_m(v, pg_neg, v);
+
+        // Store back
+        svst1(pg, values + i, v);
+    }
+}
+
 void tanh_libc(float *data, uint32_t len)
 {
     for(uint32_t i = 0; i < len; ++i)

@@ -31,10 +31,11 @@ void log2_libc(float *data, uint32_t len, float factor);
 #endif
 
 void tanh_approx(float *values, uint32_t len);
+void tanh_approx_odd(float *values, size_t len);
 void tanh_libc(float *data, uint32_t len);
 
 #ifndef tanh_array
-#define tanh_array tanh_approx
+#define tanh_array tanh_approx_odd
 #endif
 
 void attention_forward(float *restrict out, float *restrict preatt, float *restrict att,
